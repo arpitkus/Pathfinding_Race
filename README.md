@@ -19,7 +19,3 @@ Pathfinding Race is a web application that visualizes A*, Dijkstra's, and BFS pa
 ## Contributing
 
 - Contributions are welcome! Fork the repo, make your changes, and submit a pull request.
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
