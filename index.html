@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinding Race</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Pathfinding Race</h1>
+            <p class="subtitle">Visualize and compare different pathfinding algorithms</p>
+        </header>
+
+        <div id="controls">
+            <button id="startPointBtn">Set Start <i class="fas fa-flag"></i></button>
+            <button id="endPointBtn">Set End <i class="fas fa-flag-checkered"></i></button>
+            <button id="wallBtn">Toggle Walls <i class="fas fa-columns"></i></button>
+            <button id="raceBtn">Start Race <i class="fas fa-play"></i></button>
+            <button id="resetBtn">Reset <i class="fas fa-redo"></i></button>
+        </div>
+
+        <div id="gridsContainer">
+            <div class="gridWrapper">
+                <h2>A* Algorithm</h2>
+                <div id="astarGrid" class="grid"></div>
+            </div>
+            <div class="gridWrapper">
+                <h2>Dijkstra's Algorithm</h2>
+                <div id="dijkstraGrid" class="grid"></div>
+            </div>
+            <div class="gridWrapper">
+                <h2>BFS Algorithm</h2>
+                <div id="bfsGrid" class="grid"></div>
+            </div>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Pathfinding Race. All rights reserved.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
