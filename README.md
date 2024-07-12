@@ -19,3 +19,6 @@ Pathfinding Race is a web application that visualizes A*, Dijkstra's, and BFS pa
 ## Contributing
 
 - Contributions are welcome! Fork the repo, make your changes, and submit a pull request.
+
+#Link to the Project 
+https://arpitkus.github.io/Pathfinding_Race/
