@@ -1,3 +1,4 @@
+//             Initial Setup and Constants
 const gridsContainer = document.getElementById('gridsContainer');
 const raceBtn = document.getElementById('raceBtn');
 const resetBtn = document.getElementById('resetBtn');
@@ -13,19 +14,23 @@ const TIMEOUT_MS = 10000; // 10 seconds
 
 let start = null;
 let end = null;
-let walls = new Set();
-let gridArrays = {};
+let walls = new Set();        // creating a set of all walls , help for visualization.
+let gridArrays = {};          // gonna help a lot.
 let isSettingStart = false;
 let isSettingEnd = false;
 let isSettingWalls = false;
-let isGridLocked = false;
+let isGridLocked = false;       // developed with locked mechanism.
 
 const algorithms = ['astar', 'dijkstra', 'bfs'];
 
+
+//              Grid Initialization
 function initializeGrids() {
     algorithms.forEach(algo => {
         const grid = document.getElementById(`${algo}Grid`);
+        //  variable named grid that will hold the reference to the HTML element with the ID algoGrid.
         grid.style.gridTemplateColumns = `repeat(${COLS}, 15px)`;
+
         gridArrays[algo] = [];
 
         for (let row = 0; row < ROWS; row++) {
@@ -38,12 +43,15 @@ function initializeGrids() {
                 cell.addEventListener('click', (e) => cellClickHandler(e, algo));
                 cell.addEventListener('mouseover', (e) => cellMouseOverHandler(e, algo));
                 grid.appendChild(cell);
-                gridArrays[algo][row][col] = cell;
+                gridArrays[algo][row][col] = cell;          //    storing reference of each cell.
             }
         }
     });
     updateButtonStates();
 }
+
+
+//   Cell event  generation  and   setting start , end , walls 
 
 function cellClickHandler(e, algo) {
     if (isGridLocked) return;
@@ -107,12 +115,13 @@ function toggleWall(row, col) {
             if (walls.has(key)) {
                 walls.delete(key);
             } else {
-                walls.add(key);
+                walls.add(key);       // adding to the set.
             }
         }
     });
 }
 
+// resetting whole grid.
 function resetGrids() {
     isGridLocked = false;
     start = null;
@@ -133,9 +142,14 @@ function resetGrids() {
     updateButtonStates();
 }
 
+
+
+
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
 
 async function runRace() {
     if (isGridLocked) {
@@ -200,29 +214,61 @@ async function runRace() {
     }
 }
 
+class PriorityQueue {
+    constructor() {
+        this.elements = [];
+    }
+
+    enqueue(element, priority) {
+        this.elements.push({element, priority});
+        this.elements.sort((a, b) => a.priority - b.priority);
+    }
+
+    dequeue() {
+        return this.elements.shift().element;
+    }
+
+    isEmpty() {
+        return this.elements.length === 0;
+    }
+
+    contains(element) {
+        return this.elements.some(item => 
+            item.element.row === element.row && item.element.col === element.col);
+    }
+
+    update(element, priority) {
+        const index = this.elements.findIndex(item => 
+            item.element.row === element.row && item.element.col === element.col);
+        if (index !== -1) {
+            this.elements[index].priority = priority;
+            this.elements.sort((a, b) => a.priority - b.priority);
+        }
+    }
+}
+
 async function visualize(algorithm) {
-    const visited = new Set();
-    const queue = [{ ...start, path: [] }];
+    const queue = new PriorityQueue();
+    const distances = new Map();
+    const cameFrom = new Map();
     const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     let steps = 0;
 
-    while (queue.length > 0 && steps < MAX_ITERATIONS) {
-        let current;
-        if (algorithm === 'astar') {
-            current = queue.reduce((a, b) => a.f < b.f ? a : b);
-            queue.splice(queue.indexOf(current), 1);
-        } else {
-            current = queue.shift();
-        }
+    const startKey = `${start.row},${start.col}`;
+    distances.set(startKey, 0);
+    queue.enqueue(start, 0);
+
+    while (!queue.isEmpty() && steps < MAX_ITERATIONS) {
+        const current = queue.dequeue();
+        const currentKey = `${current.row},${current.col}`;
+        const currentDistance = distances.get(currentKey);
 
         if (current.row === end.row && current.col === end.col) {
-            await visualizePath(algorithm, current.path);
-            return { algorithm, steps, pathLength: current.path.length };
+            const path = reconstructPath(cameFrom, current);
+            await visualizePath(algorithm, path);
+            return { algorithm, steps, pathLength: currentDistance };
         }
 
-        const key = `${current.row},${current.col}`;
-        if (visited.has(key)) continue;
-        visited.add(key);
         steps++;
 
         if (gridArrays[algorithm][current.row][current.col] !== gridArrays[algorithm][start.row][start.col]) {
@@ -235,26 +281,56 @@ async function visualize(algorithm) {
             const newCol = current.col + dy;
             const newKey = `${newRow},${newCol}`;
 
-            if (newRow < 0 || newRow >= ROWS || newCol < 0 || newCol >= COLS || walls.has(newKey) || visited.has(newKey)) {
+            if (newRow < 0 || newRow >= ROWS || newCol < 0 || newCol >= COLS || walls.has(newKey)) {
                 continue;
             }
 
-            const newPath = [...current.path, { row: current.row, col: current.col }];
-            const newNode = { row: newRow, col: newCol, path: newPath };
+            const neighbor = { row: newRow, col: newCol };
+            const newDistance = currentDistance + 1;
 
-            if (algorithm === 'astar') {
-                const g = newPath.length;
-                const h = Math.abs(newRow - end.row) + Math.abs(newCol - end.col);
-                newNode.f = g + h;
+            if (!distances.has(newKey) || newDistance < distances.get(newKey)) {
+                cameFrom.set(newKey, current);
+                distances.set(newKey, newDistance);
+
+                let priority;
+                if (algorithm === 'astar') {
+                    priority = newDistance + heuristic(neighbor, end);
+                } else if (algorithm === 'dijkstra') {
+                    priority = newDistance;
+                } else { // BFS
+                    priority = newDistance;
+                }
+
+                if (queue.contains(neighbor)) {
+                    queue.update(neighbor, priority);
+                } else {
+                    queue.enqueue(neighbor, priority);
+                }
             }
-
-            queue.push(newNode);
         }
     }
 
     return { algorithm, steps, pathLength: Infinity };
 }
 
+function heuristic(a, b) {
+    // manhattan heuristic function.
+    return Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
+}
+
+function reconstructPath(cameFrom, current) {
+    const path = [current];
+    let key = `${current.row},${current.col}`;
+    while (cameFrom.has(key)) {
+        current = cameFrom.get(key);
+        path.unshift(current);
+        key = `${current.row},${current.col}`;
+    }
+    return path;
+}
+
+
+// visualizing the final path 
 async function visualizePath(algorithm, path) {
     for (const { row, col } of path) {
         if (gridArrays[algorithm][row][col] !== gridArrays[algorithm][start.row][start.col] && 
@@ -264,6 +340,9 @@ async function visualizePath(algorithm, path) {
         }
     }
 }
+
+
+
 
 function updateButtonStates() {
     startPointBtn.disabled = isGridLocked;
@@ -284,14 +363,14 @@ function testEdgeCases() {
     console.log('Testing edge cases...');
 
     // Test 1: No valid path
-    // resetGrids();
-    // setStartPoint(0, 0);
-    // setEndPoint(ROWS - 1, COLS - 1);
-    // for (let i = 0; i < ROWS; i++) {
-    //     toggleWall(i, Math.floor(COLS / 2));
-    // }
-    // console.log('Test 1: No valid path');
-    // runRace();
+    resetGrids();
+    setStartPoint(0, 0);
+    setEndPoint(ROWS - 1, COLS - 1);
+    for (let i = 0; i < ROWS; i++) {
+        toggleWall(i, Math.floor(COLS / 2));
+    }
+    console.log('Test 1: No valid path');
+    runRace();
 
     // Test 2: Start and end at corners
     // resetGrids();
@@ -301,17 +380,20 @@ function testEdgeCases() {
     // runRace();
 
     // Test 3: Walled-off end point
-    resetGrids();
-    setStartPoint(0, 0);
-    setEndPoint(ROWS - 1, COLS - 1);
-    toggleWall(ROWS - 2, COLS - 1);
-    toggleWall(ROWS - 1, COLS - 2);
-    console.log('Test 3: Walled-off end point');
-    runRace();
+    // resetGrids();
+    // setStartPoint(0, 0);
+    // setEndPoint(ROWS - 1, COLS - 1);
+    // toggleWall(ROWS - 2, COLS - 1);
+    // toggleWall(ROWS - 1, COLS - 2);
+    // console.log('Test 3: Walled-off end point');
+    // runRace();
 
-    console.log('Edge case testing complete');
+    // console.log('Edge case testing complete');
 }
 
+
+
+// what changes you have to make after doing action on the buttons.
 raceBtn.addEventListener('click', runRace);
 resetBtn.addEventListener('click', resetGrids);
 
